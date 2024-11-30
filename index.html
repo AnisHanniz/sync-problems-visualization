@@ -104,6 +104,76 @@
             margin: 10px 0;
             display: none;
         }
+        .dining-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .table-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto;
+        }
+        .dining-table {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: #8b4513;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .philosopher {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .fork {
+            position: absolute;
+            width: 10px;
+            height: 40px;
+            background: #996515;
+            border-radius: 2px;
+            transform-origin: bottom center;
+            transition: all 0.3s;
+        }
+        .fork.in-use {
+            background: #ff4444;
+        }
+        .philosopher.thinking {
+            background: #4CAF50;
+        }
+        .philosopher.hungry {
+            background: #ff9800;
+        }
+        .philosopher.eating {
+            background: #2196F3;
+        }
+        .philosopher.deadlock {
+            background: #ff4444;
+        }
+        .status-panel {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .deadlock-warning {
+            color: #ff4444;
+            font-weight: bold;
+            display: none;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -149,6 +219,25 @@
         </div>
         <div class="status" id="rw-status">État: Disponible</div>
         <div class="error" id="rw-error"></div>
+    </div>
+    <!-- Section des 5 philosophes -->
+    <div class="dining-section">
+        <h2>Les 5 Philosophes</h2>
+        <div class="table-container">
+            <div class="dining-table"></div>
+            <!-- Les philosophes et les fourchettes seront ajoutés en JS -->
+        </div>
+        <div class="status-panel">
+            <div>
+                <span style="color: #4CAF50;">■</span> Pense
+                <span style="color: #ff9800;">■</span> A faim
+                <span style="color: #2196F3;">■</span> Mange
+                <span style="color: #ff4444;">■</span> Bloqué
+            </div>
+            <div class="deadlock-warning" id="deadlock-warning">
+                ATTENTION: Situation de blocage détectée!
+            </div>
+        </div>
     </div>
 
     <script>
@@ -322,6 +411,153 @@
                 updateRWStatus();
             }, 3000);
         }
+          class Philosopher {
+            constructor(id, x, y) {
+                this.id = id;
+                this.state = 'thinking'; // thinking, hungry, eating
+                this.element = document.createElement('div');
+                this.element.className = 'philosopher';
+                this.element.textContent = id + 1;
+                this.element.style.left = x + 'px';
+                this.element.style.top = y + 'px';
+                this.leftFork = null;
+                this.rightFork = null;
+                this.waitingTime = 0;
+            }
+
+            setState(state) {
+                this.state = state;
+                switch(state) {
+                    case 'thinking':
+                        this.element.className = 'philosopher thinking';
+                        break;
+                    case 'hungry':
+                        this.element.className = 'philosopher hungry';
+                        break;
+                    case 'eating':
+                        this.element.className = 'philosopher eating';
+                        break;
+                    case 'deadlock':
+                        this.element.className = 'philosopher deadlock';
+                        break;
+                }
+            }
+        }
+
+        class Fork {
+            constructor(id, x, y, angle) {
+                this.id = id;
+                this.inUse = false;
+                this.element = document.createElement('div');
+                this.element.className = 'fork';
+                this.element.style.left = x + 'px';
+                this.element.style.top = y + 'px';
+                this.element.style.transform = `rotate(${angle}deg)`;
+            }
+
+            setInUse(inUse) {
+                this.inUse = inUse;
+                this.element.className = inUse ? 'fork in-use' : 'fork';
+            }
+        }
+
+        class DiningPhilosophers {
+            constructor() {
+                this.philosophers = [];
+                this.forks = [];
+                this.tableContainer = document.querySelector('.table-container');
+                this.deadlockWarning = document.getElementById('deadlock-warning');
+                this.init();
+            }
+
+            init() {
+                // Créer les philosophes
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 72) - 90; // -90 pour commencer en haut
+                    const radius = 150;
+                    const x = 170 + radius * Math.cos(angle * Math.PI / 180);
+                    const y = 170 + radius * Math.sin(angle * Math.PI / 180);
+                    
+                    const philosopher = new Philosopher(i, x, y);
+                    this.philosophers.push(philosopher);
+                    this.tableContainer.appendChild(philosopher.element);
+
+                    // Créer la fourchette
+                    const forkAngle = ((i * 72) + 36) - 90;
+                    const forkRadius = 100;
+                    const forkX = 195 + forkRadius * Math.cos(forkAngle * Math.PI / 180);
+                    const forkY = 195 + forkRadius * Math.sin(forkAngle * Math.PI / 180);
+                    
+                    const fork = new Fork(i, forkX, forkY, forkAngle);
+                    this.forks.push(fork);
+                    this.tableContainer.appendChild(fork.element);
+                }
+
+                // Assigner les fourchettes aux philosophes
+                for (let i = 0; i < 5; i++) {
+                    this.philosophers[i].leftFork = this.forks[i];
+                    this.philosophers[i].rightFork = this.forks[(i + 1) % 5];
+                    
+                    // Ajouter les événements de clic
+                    this.philosophers[i].element.onclick = () => this.togglePhilosopher(i);
+                }
+
+                // Démarrer la détection de blocage
+                setInterval(() => this.checkDeadlock(), 1000);
+            }
+
+            togglePhilosopher(index) {
+                const philosopher = this.philosophers[index];
+                const leftFork = philosopher.leftFork;
+                const rightFork = philosopher.rightFork;
+
+                switch(philosopher.state) {
+                    case 'thinking':
+                        philosopher.setState('hungry');
+                        break;
+
+                    case 'hungry':
+                        if (!leftFork.inUse && !rightFork.inUse) {
+                            leftFork.setInUse(true);
+                            rightFork.setInUse(true);
+                            philosopher.setState('eating');
+                        }
+                        break;
+
+                    case 'eating':
+                        leftFork.setInUse(false);
+                        rightFork.setInUse(false);
+                        philosopher.setState('thinking');
+                        break;
+                }
+            }
+
+            checkDeadlock() {
+                let allHungry = true;
+                let deadlockDetected = true;
+
+                for (let philosopher of this.philosophers) {
+                    if (philosopher.state !== 'hungry') {
+                        allHungry = false;
+                    }
+                }
+
+                if (allHungry) {
+                    this.deadlockWarning.style.display = 'block';
+                    for (let philosopher of this.philosophers) {
+                        philosopher.setState('deadlock');
+                    }
+                } else {
+                    this.deadlockWarning.style.display = 'none';
+                    deadlockDetected = false;
+                }
+
+                return deadlockDetected;
+            }
+        }
+
+        // Créer l'instance
+        const diningPhilosophers = new DiningPhilosophers();
     </script>
 </body>
 </html>
