@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Problèmes de Synchronisation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .resource {
+            width: 100px;
+            height: 100px;
+            background: #4CAF50;
+            margin: 20px auto;
+            position: relative;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .process {
+            width: 50px;
+            height: 50px;
+            background: #2196F3;
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .buffer {
+            width: 300px;
+            height: 60px;
+            background: #f0f0f0;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            gap: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .item {
+            width: 40px;
+            height: 40px;
+            background: #2196F3;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .warning {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff4444;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 10px 0;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .producer { background: #4CAF50; color: white; }
+        .consumer { background: #2196F3; color: white; }
+        .reader { background: #9c27b0; color: white; }
+        .writer { background: #ff9800; color: white; }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .error {
+            color: #ff4444;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Visualisation des Problèmes de Synchronisation</h1>
+
+    <!-- Exclusion Mutuelle -->
+    <div class="section">
+        <h2>1. Exclusion Mutuelle</h2>
+        <div class="resource" id="mutex-resource">
+            Ressource
+            <div class="warning" id="mutex-warning">CONFLIT D'ACCÈS!</div>
+        </div>
+        <div class="control-panel">
+            <button onclick="addProcess()">Ajouter Processus</button>
+            <button onclick="clearProcesses()">Réinitialiser</button>
+        </div>
+        <div class="error" id="mutex-error">Erreur: Violation de l'exclusion mutuelle!</div>
+    </div>
+
+    <!-- Producteur-Consommateur -->
+    <div class="section">
+        <h2>2. Producteur-Consommateur</h2>
+        <div class="buffer" id="buffer">
+            <div class="warning" id="buffer-warning"></div>
+        </div>
+        <div class="control-panel">
+            <button class="producer" onclick="produce()">Producteur</button>
+            <button class="consumer" onclick="consume()">Consommateur</button>
+        </div>
+        <div class="error" id="prodcons-error"></div>
+    </div>
+
+    <!-- Lecteurs-Écrivains -->
+    <div class="section">
+        <h2>3. Lecteurs-Écrivains</h2>
+        <div class="resource" id="rw-resource">
+            Document
+            <div class="warning" id="rw-warning">CONFLIT!</div>
+        </div>
+        <div class="control-panel">
+            <button class="reader" onclick="addReader()">Ajouter Lecteur</button>
+            <button class="writer" onclick="addWriter()">Ajouter Écrivain</button>
+        </div>
+        <div class="status" id="rw-status">État: Disponible</div>
+        <div class="error" id="rw-error"></div>
+    </div>
+
+    <script>
+        // Variables globales
+        let processes = [];
+        let buffer = [];
+        let readers = 0;
+        let writing = false;
+        const MAX_BUFFER = 5;
+
+        // Exclusion Mutuelle
+        function addProcess() {
+            const resource = document.getElementById('mutex-resource');
+            const warning = document.getElementById('mutex-warning');
+            const error = document.getElementById('mutex-error');
+            
+            const process = document.createElement('div');
+            process.className = 'process';
+            process.textContent = processes.length + 1;
+            
+            // Position aléatoire autour de la ressource
+            const angle = Math.random() * 2 * Math.PI;
+            const radius = 100;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            process.style.transform = `translate(${x}px, ${y}px)`;
+            resource.appendChild(process);
+            processes.push(process);
+
+            // Simuler l'accès à la ressource
+            process.onclick = () => {
+                if (processes.some(p => p.accessing)) {
+                    warning.style.display = 'block';
+                    error.style.display = 'block';
+                    error.textContent = 'Erreur: Plusieurs processus tentent d\'accéder à la ressource!';
+                    setTimeout(() => {
+                        warning.style.display = 'none';
+                        error.style.display = 'none';
+                    }, 2000);
+                } else {
+                    process.style.background = '#ff4444';
+                    process.accessing = true;
+                    setTimeout(() => {
+                        process.style.background = '#2196F3';
+                        process.accessing = false;
+                    }, 2000);
+                }
+            };
+        }
+
+        function clearProcesses() {
+            const resource = document.getElementById('mutex-resource');
+            processes.forEach(p => resource.removeChild(p));
+            processes = [];
+            document.getElementById('mutex-warning').style.display = 'none';
+            document.getElementById('mutex-error').style.display = 'none';
+        }
+
+        // Producteur-Consommateur
+        function produce() {
+            const bufferEl = document.getElementById('buffer');
+            const warning = document.getElementById('buffer-warning');
+            const error = document.getElementById('prodcons-error');
+
+            if (buffer.length >= MAX_BUFFER) {
+                warning.textContent = 'BUFFER PLEIN!';
+                warning.style.display = 'block';
+                error.style.display = 'block';
+                error.textContent = 'Erreur: Tentative de production dans un buffer plein!';
+                error.style.color = '#ff4444';
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                    error.style.display = 'none';
+                }, 2000);
+                return;
+            }
+
+            const item = document.createElement('div');
+            item.className = 'item';
+            item.textContent = buffer.length + 1;
+            bufferEl.appendChild(item);
+            buffer.push(item);
+        }
+
+        function consume() {
+            const warning = document.getElementById('buffer-warning');
+            const error = document.getElementById('prodcons-error');
+
+            if (buffer.length === 0) {
+                warning.textContent = 'BUFFER VIDE!';
+                warning.style.display = 'block';
+                error.style.display = 'block';
+                error.textContent = 'Erreur: Tentative de consommation depuis un buffer vide!';
+                error.style.color = '#ff4444';
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                    error.style.display = 'none';
+                }, 2000);
+                return;
+            }
+
+            const item = buffer.pop();
+            item.parentNode.removeChild(item);
+        }
+
+        // Lecteurs-Écrivains
+        function updateRWStatus() {
+            const status = document.getElementById('rw-status');
+            const warning = document.getElementById('rw-warning');
+            const error = document.getElementById('rw-error');
+
+            if (writing) {
+                status.textContent = `État: Écriture en cours`;
+                document.getElementById('rw-resource').style.background = '#ff9800';
+            } else if (readers > 0) {
+                status.textContent = `État: ${readers} lecteur(s)`;
+                document.getElementById('rw-resource').style.background = '#9c27b0';
+            } else {
+                status.textContent = 'État: Disponible';
+                document.getElementById('rw-resource').style.background = '#4CAF50';
+            }
+        }
+
+        function addReader() {
+            const warning = document.getElementById('rw-warning');
+            const error = document.getElementById('rw-error');
+
+            if (writing) {
+                warning.style.display = 'block';
+                error.style.display = 'block';
+                error.textContent = 'Erreur: Tentative de lecture pendant une écriture!';
+                error.style.color = '#ff4444';
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                    error.style.display = 'none';
+                }, 2000);
+                return;
+            }
+
+            readers++;
+            updateRWStatus();
+            setTimeout(() => {
+                readers--;
+                updateRWStatus();
+            }, 3000);
+        }
+
+        function addWriter() {
+            const warning = document.getElementById('rw-warning');
+            const error = document.getElementById('rw-error');
+
+            if (writing || readers > 0) {
+                warning.style.display = 'block';
+                error.style.display = 'block';
+                error.textContent = writing ? 
+                    'Erreur: Tentative d\'écriture pendant une autre écriture!' :
+                    'Erreur: Tentative d\'écriture pendant des lectures!';
+                error.style.color = '#ff4444';
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                    error.style.display = 'none';
+                }, 2000);
+                return;
+            }
+
+            writing = true;
+            updateRWStatus();
+            setTimeout(() => {
+                writing = false;
+                updateRWStatus();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
